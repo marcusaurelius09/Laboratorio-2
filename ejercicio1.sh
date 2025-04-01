@@ -1,31 +1,31 @@
 #!/bin/bash
 
-#This is the script for users and permissions.
+# Script for managing users, groups, and file permissions
+# Usage: ./ejercicio1.sh <username> <groupname> <filepath>
 
-#Control to check if the user is root
-
-if ["$UID" -ne 0 ]; then
-	echo "[ERROR] This script requires root privileges. If you want to run it, please use the sudo command or start as root user..."
-	exit 1
+# ---- Root Check ----
+if [ "$(id -u)" -ne 0 ]; then
+    echo "[ERROR] This script requires root privileges. Use: sudo $0 <args>"
+    exit 1
 fi
 
-
-#Request data from the user.
-
-echo "To provide you with the best possible service, please complete the following information below:"
-read -p "User name: " user
-read -p "Group name: " group
-read -p "File route: " filepath
-
-# Validate that all data is entered
-
-if [ -z "$user" ] || [ -z "$group" ] || [ -z "$filepath" ]; then #-z it's a conditional test just to verify that the requested information is not empty.
-	echo "[ERROR] You need to provide all the requested information :("
-	exit 1
+# ---- Parameter Validation ----
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 <username> <groupname> <filepath>"
+    exit 1
 fi
 
-#File route verification.
+user="$1"
+group="$2"
+filepath="$3"
 
+# ---- Input Validation ----
+if [ -z "$user" ] || [ -z "$group" ] || [ -z "$filepath" ]; then
+    echo "[ERROR] All arguments are required."
+    exit 1
+fi
+
+# ---- File Validation ----
 if [ ! -e "$filepath" ]; then
     echo "[ERROR] Path '$filepath' does not exist."
     exit 1
@@ -34,34 +34,27 @@ elif [ ! -f "$filepath" ]; then
     exit 1
 fi
 
-# Group management
+# ---- Group Management ----
 if getent group "$group" >/dev/null; then
-    echo "[INFO] The group '$group' already exists."
+    echo "[INFO] Group '$group' already exists."
 else
-    groupadd "$group"
-    echo "[INFO] Group '$group' created successfully."
+    groupadd "$group" && echo "[INFO] Group '$group' created successfully."
 fi
 
-# User management
+# ---- User Management ----
 if id "$user" &>/dev/null; then
-    echo "[INFO] The user '$user' already exists. Adding to group '$group'."
+    echo "[INFO] User '$user' already exists. Adding to group '$group'."
     usermod -aG "$group" "$user"
 else
-    useradd -m -G "$group" "$user"
-    echo "[INFO] User '$user' created successfully and added to group '$group'."
+    useradd -m -G "$group" "$user" && echo "[INFO] User '$user' created and added to group '$group'."
 fi
 
-# Change file ownership
+# ---- File Permissions ----
 chown "$user":"$group" "$filepath"
-echo "[INFO] File ownership changed to '$user:$group'."
+chmod 740 "$filepath"  # Fixed: Group gets read-only (r--), not execute (r-x)
 
-# Modify file permissions
-chmod 750 "$filepath"
-echo -e "\n[INFO] Updated file permissions:"
-echo "User: read, write, execute (rwx)"
-echo "Group: read and execute only (r-x)"
-echo "Others: no permissions (---)"
-echo -e "\nFinal result:"
+# ---- Results ----
+echo -e "\n[INFO] Final permissions for '$filepath':"
 ls -l "$filepath"
 
 exit 0
